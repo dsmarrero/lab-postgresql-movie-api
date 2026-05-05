@@ -1,149 +1,148 @@
-const db = require('../data/peliculas')
+const peliculaService = require('../services/PeliculaService')
 
+// GET /api/peliculas
+const listarPeliculas = async (req, res, next) => {
+  try {
+    const { genero, buscar } = req.query;
 
-const listarPeliculas = (req, res) => {
-  const { genero } = req.query;
-  
-  const pagina = Number(req.query.pagina) || 1;
-  const limite = Number(req.query.limite) || 5;
+    // El servicio espera un objeto con filtros (genero, buscar)
+    const resultado = await peliculaService.obtenerTodas({ genero, buscar });
 
-  const resultado = db.getAll(genero, pagina, limite);
-
-  res.json(resultado);
-};
-// GET /api/peliculas/:id
-const obtenerPelicula = (req, res) => {
-  const id = Number(req.params.id)
-  const pelicula = db.getById(id)
-
-  if (!pelicula) {
-    return res.status(404).json({ error: 'Película no encontrada' })
+    res.json(resultado);
+  } catch (err) {
+    next(err);
   }
+};
 
-  res.json(pelicula)
+// GET /api/peliculas/:id
+const obtenerPelicula = async (req, res, next) => {
+  try {
+    const id = Number(req.params.id)
+    
+    // El servicio ya lanza un AppError 404 por dentro si no existe
+    const pelicula = await peliculaService.obtenerPorId(id)
+
+    res.json(pelicula)
+  } catch (err) {
+    next(err)
+  }
 }
 
 // POST /api/peliculas
-const crearPelicula = (req, res) => {
-  const { titulo, director, anio, genero, nota } = req.body
+const crearPelicula = async (req, res, next) => {
+  try {
+    const { titulo, director_id, anio, genero_id, nota } = req.body
 
-  if (!titulo || !director || !anio || !genero) {
-    return res.status(400).json({
-      error: 'Los campos titulo, director, anio y genero son obligatorios'
+    if (!titulo || !anio) {
+      return res.status(400).json({
+        error: 'Los campos titulo y anio son obligatorios'
+      })
+    }
+
+    const nueva = await peliculaService.crear({
+      titulo,
+      anio,
+      nota,
+      director_id,
+      genero_id
     })
+
+    res.status(201).json(nueva)
+  } catch (err) {
+    next(err)
   }
-
-  if (nota !== undefined && (nota < 0 || nota > 10)) {
-    return res.status(400).json({ error: 'La nota debe estar entre 0 y 10' })
-  }
-
-  const nueva = db.create({
-    titulo,
-    director,
-    anio: Number(anio),
-    genero,
-    nota: nota !== undefined ? Number(nota) : null
-  })
-
-  res.status(201).json(nueva)
 }
 
 // PUT /api/peliculas/:id
-const actualizarPelicula = (req, res) => {
-  const id = Number(req.params.id)
-  const { titulo, director, anio, genero, nota } = req.body
+const actualizarPelicula = async (req, res, next) => {
+  try {
+    const id = Number(req.params.id)
+    const { titulo, director_id, anio, genero_id, nota } = req.body
 
-  if (!titulo || !director || !anio || !genero) {
-    return res.status(400).json({
-      error: 'PUT requiere todos los campos: titulo, director, anio, genero'
+    const actualizada = await peliculaService.actualizar(id, { 
+      titulo, 
+      director_id, 
+      anio, 
+      genero_id, 
+      nota 
     })
+
+    res.json(actualizada)
+  } catch (err) {
+    next(err)
   }
-
-  const actualizada = db.update(id, { titulo, director, anio: Number(anio), genero, nota: nota ? Number(nota) : null })
-
-  if (!actualizada) {
-    return res.status(404).json({ error: 'Película no encontrada' })
-  }
-
-  res.json(actualizada)
 }
 
+// PATCH /api/peliculas/:id
+const parchearPelicula = async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    
+    // El método actualizar del servicio maneja campos opcionales, sirviendo para PATCH
+    const actualizada = await peliculaService.actualizar(id, req.body);
 
-const parchearPelicula = (req, res) => {
-  const id = Number(req.params.id);
-  
-  const actualizada = db.patch(id, req.body);
-
-  if (!actualizada) {
-    return res.status(404).json({ error: 'Película no encontrada' });
+    res.json(actualizada);
+  } catch (err) {
+    next(err);
   }
-
-  res.json(actualizada);
 };
 
-
-
 // DELETE /api/peliculas/:id
-const eliminarPelicula = (req, res) => {
-  const id = Number(req.params.id)
-  const eliminada = db.delete(id)
+const eliminarPelicula = async (req, res, next) => {
+  try {
+    const id = Number(req.params.id)
+    const eliminada = await peliculaService.eliminar(id)
 
-  if (!eliminada) {
-    return res.status(404).json({ error: 'Película no encontrada' })
+    res.json({ mensaje: 'Película eliminada', pelicula: eliminada })
+  } catch (err) {
+    next(err)
   }
-
-  res.json({ mensaje: 'Película eliminada', pelicula: eliminada })
 }
 
 // GET /api/estadisticas
-const obtenerEstadisticas = (req, res) => {
-  res.json(db.getStats())
+const obtenerEstadisticas = async (req, res, next) => {
+  try {
+    const estadisticas = await peliculaService.obtenerEstadisticas()
+    res.json(estadisticas)
+  } catch (err) {
+    next(err)
+  }
 }
 
 // GET /api/peliculas/:id/resenas
-const listarResenas = (req, res) => {
-  const peliculaId = Number(req.params.id)
-  const pelicula = db.getById(peliculaId)
-
-  if (!pelicula) {
-    return res.status(404).json({ error: 'Película no encontrada' })
+const listarResenas = async (req, res, next) => {
+  try {
+    const peliculaId = Number(req.params.id)
+    const resenas = await peliculaService.obtenerResenas(peliculaId)
+    
+    res.json(resenas)
+  } catch (err) {
+    next(err)
   }
-
-  const resenas = db.getResenas(peliculaId)
-  res.json({ pelicula: pelicula.titulo, resenas })
 }
 
 // POST /api/peliculas/:id/resenas
-const crearResena = (req, res) => {
-  const peliculaId = Number(req.params.id)
-  const pelicula = db.getById(peliculaId)
+const crearResena = async (req, res, next) => {
+  try {
+    const peliculaId = Number(req.params.id)
+    const { autor, texto, puntuacion } = req.body
 
-  if (!pelicula) {
-    return res.status(404).json({ error: 'Película no encontrada' })
-  }
+    if (!autor || !texto || puntuacion === undefined) {
+      return res.status(400).json({
+        error: 'Los campos autor, texto y puntuacion son obligatorios'
+      })
+    }
 
-  const { autor, texto, puntuacion } = req.body
-
-  if (!autor || !texto || puntuacion === undefined) {
-    return res.status(400).json({
-      error: 'Los campos autor, texto y puntuacion son obligatorios'
+    const nueva = await peliculaService.crearResena(peliculaId, {
+      autor,
+      texto,
+      puntuacion
     })
+
+    res.status(201).json(nueva)
+  } catch (err) {
+    next(err)
   }
-
-  if (puntuacion < 1 || puntuacion > 10) {
-    return res.status(400).json({ error: 'La puntuacion debe ser entre 1 y 10' })
-  }
-
-  const nueva = db.createResena(peliculaId, {
-    autor,
-    texto,
-    puntuacion: Number(puntuacion)
-  })
-
-  res.status(201).json(nueva)
-
-
-
 }
 
 module.exports = {
