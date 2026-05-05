@@ -1,15 +1,18 @@
 require('dotenv').config() // 1. Primero cargamos las variables de entorno
 require('./src/config/db') // 2. Después verificamos la conexión a la base de datos
-
 const express = require('express')
+const authRouter = require('./src/routes/auth')
 const peliculaService = require('./src/services/PeliculaService') // Importamos el servicio para las estadísticas
 const peliculasRouter = require('./src/routes/peliculas')
 
 const app = express()
 const PORT = process.env.PORT || 3000
 
-// Middleware global
+// Middleware global (Traduce el JSON antes de que llegue a las rutas)
 app.use(express.json())
+
+// Rutas de autenticación
+app.use('/api/auth', authRouter)
 
 // Rutas de películas
 app.use('/api/peliculas', peliculasRouter)

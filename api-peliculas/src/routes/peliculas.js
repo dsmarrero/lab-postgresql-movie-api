@@ -1,27 +1,28 @@
 const { Router } = require('express')
+const router = Router()
+const verificarToken = require('../middleware/verificarToken')
+const verificarRol = require('../middleware/verificarRol')
 const {
   listarPeliculas,
   obtenerPelicula,
   crearPelicula,
   actualizarPelicula,
-  parchearPelicula,
   eliminarPelicula,
   listarResenas,
   crearResena
 } = require('../controllers/peliculasController')
 
-const router = Router()
-
-// Rutas de películas
+// Rutas públicas
 router.get('/', listarPeliculas)
 router.get('/:id', obtenerPelicula)
-router.post('/', crearPelicula)
-router.put('/:id', actualizarPelicula)
-router.patch('/:id', parchearPelicula);
-router.delete('/:id', eliminarPelicula)
-
-// Rutas anidadas: reseñas de una película
 router.get('/:id/resenas', listarResenas)
-router.post('/:id/resenas', crearResena)
+
+// Rutas protegidas: cualquier usuario autenticado
+router.post('/', verificarToken, crearPelicula)
+router.post('/:id/resenas', verificarToken, crearResena)
+
+// Rutas protegidas: solo admin
+router.put('/:id', verificarToken, verificarRol('admin'), actualizarPelicula)
+router.delete('/:id', verificarToken, verificarRol('admin'), eliminarPelicula)
 
 module.exports = router
